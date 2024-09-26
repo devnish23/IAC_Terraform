@@ -151,7 +151,7 @@ resource "aws_instance" "worker" {
               sysctl --system
 
               # Install Kubernetes
-              cat <<EOF | tee /etc/yum.repos.d/kubernetes.repo
+              cat <<EOF2 | tee /etc/yum.repos.d/kubernetes.repo
               [kubernetes]
               name=Kubernetes
               baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
@@ -159,7 +159,7 @@ resource "aws_instance" "worker" {
               gpgcheck=1
               repo_gpgcheck=1
               gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
-              EOF
+              EOF2
 
               yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
               systemctl enable --now kubelet
