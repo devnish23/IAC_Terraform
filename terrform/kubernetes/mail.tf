@@ -1,10 +1,14 @@
 provider "aws" {
-  region = "us-west-2"
+  region = "us-east-1"
+}
+
+data "aws_vpc" "default" {
+  default = true
 }
 
 variable "key_name" {
   description = "SSH Keypair for EC2 access"
-  default     = "your-keypair"
+  default     = "kubernetes"
 }
 
 variable "instance_type" {
@@ -14,14 +18,14 @@ variable "instance_type" {
 
 variable "ami" {
   description = "RHEL 8 AMI for Kubernetes"
-  default     = "ami-0e4724df9f8e6af9a"  # Replace with a valid RHEL 8 AMI for your region
+  default     = "ami-0583d8c7a9c35822c"  # Replace with a valid RHEL 8 AMI for your region
 }
 
 # Security group for Kubernetes master and worker nodes
 resource "aws_security_group" "k8s_sg" {
   name        = "k8s_security_group"
   description = "Allow traffic for Kubernetes Cluster"
-  vpc_id      = "your-vpc-id"
+  vpc_id      = data.aws_vpc.default.id 
 
   # Allow SSH
   ingress {
@@ -83,29 +87,51 @@ resource "aws_instance" "master" {
               # Install Docker
               yum install -y yum-utils
               yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-              yum install -y docker-ce docker-ce-cli containerd.io
-              systemctl enable --now docker
+              yum install -y containerd
+              systemctl enable --now containerd
 
               # Enable IP Forwarding
               echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.d/k8s.conf
               sysctl --system
 
               # Install Kubernetes
-              cat <<EOF | tee /etc/yum.repos.d/kubernetes.repo
+              cat <<EOF2 | tee /etc/yum.repos.d/kubernetes.repo
               [kubernetes]
               name=Kubernetes
-              baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+              baseurl=https://pkgs.k8s.io/core:/stable:/v1.30/rpm/
               enabled=1
               gpgcheck=1
-              repo_gpgcheck=1
-              gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
-              EOF
+              gpgkey=https://pkgs.k8s.io/core:/stable:/v1.30/rpm/repodata/repomd.xml.key
+              EOF2
 
               yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
               systemctl enable --now kubelet
 
+              yum update -y
+              # Generate the default containerd configuration file if not present
+              if [ ! -f /etc/containerd/config.toml ]; then
+                  containerd config default | tee /etc/containerd/config.toml
+              fi
+              
+              # Modify the containerd configuration
+              sed -i 's/^disabled_plugins = \["cri"\]/#disabled_plugins = \["cri"\]/' /etc/containerd/config.toml
+              
+              # Add the enabled_plugins and endpoint configuration if not already present
+              if ! grep -q 'enabled_plugins = \["cri"\]' /etc/containerd/config.toml; then
+                   echo 'enabled_plugins = ["cri"]' >> /etc/containerd/config.toml
+              fi
+
+              if ! grep -q '\[plugins."io.containerd.grpc.v1.cri".containerd\]' /etc/containerd/config.toml; then
+                   cat <<EOL3 | tee /etc/containerd/config.toml
+              [plugins."io.containerd.grpc.v1.cri".containerd]
+                endpoint = "unix:///var/run/containerd/containerd.sock"
+              EOL3
+              fi
+              systemctl restart containerd
+              systemctl enable containerd
+
               # Initialize Kubernetes master
-              kubeadm init --pod-network-cidr=192.168.0.0/16
+              kubeadm init 
               mkdir -p $HOME/.kube
               cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
               chown $(id -u):$(id -g) $HOME/.kube/config
@@ -143,8 +169,8 @@ resource "aws_instance" "worker" {
               # Install Docker
               yum install -y yum-utils
               yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-              yum install -y docker-ce docker-ce-cli containerd.io
-              systemctl enable --now docker
+              yum install -y containerd
+              systemctl enable --now containerd
 
               # Enable IP Forwarding
               echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.d/k8s.conf
@@ -154,15 +180,16 @@ resource "aws_instance" "worker" {
               cat <<EOF2 | tee /etc/yum.repos.d/kubernetes.repo
               [kubernetes]
               name=Kubernetes
-              baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+              baseurl=https://pkgs.k8s.io/core:/stable:/v1.30/rpm/
               enabled=1
               gpgcheck=1
-              repo_gpgcheck=1
-              gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+              gpgkey=https://pkgs.k8s.io/core:/stable:/v1.30/rpm/repodata/repomd.xml.key
               EOF2
 
               yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
               systemctl enable --now kubelet
+              systemctl restart containerd
+              systemctl enable containerd
               EOF
 }
 
