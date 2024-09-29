@@ -133,11 +133,11 @@ resource "aws_instance" "master" {
               # Initialize Kubernetes master
               kubeadm init 
               mkdir -p $HOME/.kube
-              cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-              chown $(id -u):$(id -g) $HOME/.kube/config
+              sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+              sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
               # Install Calico for networking
-              kubectl apply -f https://docs.projectcalico.org/v3.14/manifests/calico.yaml
+              kubectl apply -f kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml
               EOF
 }
 
@@ -188,6 +188,28 @@ resource "aws_instance" "worker" {
 
               yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
               systemctl enable --now kubelet
+              systemctl restart containerd
+              systemctl enable containerd
+
+              # Generate the default containerd configuration file if not present
+              if [ ! -f /etc/containerd/config.toml ]; then
+                  containerd config default | tee /etc/containerd/config.toml
+              fi
+              
+              # Modify the containerd configuration
+              sed -i 's/^disabled_plugins = \["cri"\]/#disabled_plugins = \["cri"\]/' /etc/containerd/config.toml
+              
+              # Add the enabled_plugins and endpoint configuration if not already present
+              if ! grep -q 'enabled_plugins = \["cri"\]' /etc/containerd/config.toml; then
+                   echo 'enabled_plugins = ["cri"]' >> /etc/containerd/config.toml
+              fi
+
+              if ! grep -q '\[plugins."io.containerd.grpc.v1.cri".containerd\]' /etc/containerd/config.toml; then
+                   cat <<EOL3 | tee /etc/containerd/config.toml
+              [plugins."io.containerd.grpc.v1.cri".containerd]
+                endpoint = "unix:///var/run/containerd/containerd.sock"
+              EOL3
+              fi
               systemctl restart containerd
               systemctl enable containerd
               EOF
