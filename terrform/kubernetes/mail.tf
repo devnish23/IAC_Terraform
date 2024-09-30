@@ -137,7 +137,7 @@ resource "aws_instance" "master" {
               sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
               # Install Calico for networking
-              kubectl apply -f kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml
+              kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml
               EOF
 }
 

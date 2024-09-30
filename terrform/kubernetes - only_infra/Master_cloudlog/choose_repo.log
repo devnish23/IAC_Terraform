@@ -1,0 +1,9 @@
+[INFO:choose_repo] choose_repo:33 2024-06-06 00:44:42,860: Enabling binary repos in redhat-rhui.repo
+[INFO:choose_repo] choose_repo:56 2024-06-06 00:44:42,861: Enabling client config repo
+[INFO:choose_repo] choose_repo:64 2024-06-06 00:44:42,861: Executing [sed -i 's/enabled=0/enabled=1/' /etc/yum.repos.d/redhat-rhui-client-config.repo]
+[INFO:choose_repo] choose_repo:33 2024-09-26 14:47:28,121: Enabling binary repos in redhat-rhui.repo
+[INFO:choose_repo] choose_repo:56 2024-09-26 14:47:28,130: Enabling client config repo
+[INFO:choose_repo] choose_repo:64 2024-09-26 14:47:28,131: Executing [sed -i 's/enabled=0/enabled=1/' /etc/yum.repos.d/redhat-rhui-client-config.repo]
+[INFO:choose_repo] choose_repo:33 2024-09-26 14:52:53,713: Enabling binary repos in redhat-rhui.repo
+[INFO:choose_repo] choose_repo:56 2024-09-26 14:52:53,715: Enabling client config repo
+[INFO:choose_repo] choose_repo:64 2024-09-26 14:52:53,715: Executing [sed -i 's/enabled=0/enabled=1/' /etc/yum.repos.d/redhat-rhui-client-config.repo]
